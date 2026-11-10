@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="id" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiezoStep™ 3D - Simulasi & Blueprint Lantai Piezoelektrik</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        blueprint: {
+                            950: '#040d1a',
+                            900: '#08172e',
+                            800: '#0f294d',
+                            700: '#1a4175',
+                            500: '#00d2ff',
+                            400: '#38e8ff',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #040d1a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Grid Background ala Blueprint */
+        .blueprint-bg {
+            background-color: #061224;
+            background-image: 
+                linear-gradient(rgba(0, 210, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 210, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(0, 210, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 210, 255, 0.03) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: grab;
+            touch-action: none;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(15, 41, 77, 0.8);
+            height: 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #00d2ff;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(0, 210, 255, 0.8);
+            transition: transform 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.25);
+        }
+        .glow-amber {
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+        }
+        .pulse-ring {
+            animation: pulseRing 2s infinite;
+        }
+        @keyframes pulseRing {
+            0% { box-shadow: 0 0 0 0 rgba(0, 210, 255, 0.6); }
+            70% { box-shadow: 0 0 0 12px rgba(0, 210, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 210, 255, 0); }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #040d1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1a4175;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00d2ff;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased selection:bg-cyan-500 selection:text-slate-950">
+
+    <!-- NAVBAR -->
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-blueprint-950/85 border-b border-cyan-500/20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-lg tracking-tight text-white">PIEZO<span class="text-cyan-400">STEP</span>™</span>
+                        <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">CAD & 3D Lab v2.4</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Sistem Pemanen Energi Pijakan Kaki (Piezoelectric Energy Harvesting Floor)</p>
+                </div>
+            </div>
+
+            <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+                <a href="#simulator" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5"><i class="fa-solid fa-cube text-cyan-400 text-xs"></i> Simulasi 3D</a>
+                <a href="#cara-kerja" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5"><i class="fa-solid fa-microchip text-cyan-400 text-xs"></i> Cara Kerja & Skematik</a>
+                <a href="#spesifikasi" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5"><i class="fa-solid fa-ruler-combined text-cyan-400 text-xs"></i> Blueprint & Dimensi</a>
+                <a href="#kalkulator" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5"><i class="fa-solid fa-calculator text-cyan-400 text-xs"></i> Kalkulator Daya</a>
+            </nav>
+
+            <div class="flex items-center gap-2">
+                <button id="btn-sound-toggle" onclick="toggleSound()" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-mono flex items-center gap-1.5 transition" title="Efek Suara Simulasi">
+                    <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                    <span class="hidden sm:inline" id="sound-text">SFX ON</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE: 3D SIMULATOR & INSPECTOR -->
+    <main id="simulator" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        <!-- Intro Banner -->
+        <div class="mb-6 bg-gradient-to-r from-blueprint-900 via-blueprint-800/80 to-blueprint-900 rounded-2xl p-4 sm:p-5 border border-cyan-500/30 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="space-y-1">
+                <div class="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-cyan-400">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    Interactive Product Digital Twin
+                </div>
+                <h1 class="text-xl sm:text-2xl font-bold text-white">Simulasi 3D Interaktif Lantai Piezoelektrik</h1>
+                <p class="text-xs sm:text-sm text-slate-300 max-w-3xl">
+                    Putar model 3D dengan mouse/sentuhan, gunakan fitur <strong>Tampak Samping (Cross-Section)</strong> untuk melihat potongan melintang, geser slider <strong>Urai Komponen (Exploded View)</strong>, dan tekan tombol <strong>"INJAK LANTAI"</strong> untuk menguji produksi listrik secara langsung.
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0 w-full lg:w-auto">
+                <button onclick="setCameraPreset('isometric')" class="flex-1 lg:flex-initial px-3 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 text-xs font-medium transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-cubes"></i> 3D Isometrik
+                </button>
+                <button onclick="setCameraPreset('side')" class="flex-1 lg:flex-initial px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 text-xs font-medium transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-layer-group"></i> Tampak Samping (2D/3D)
+                </button>
+                <button onclick="setCameraPreset('top')" class="flex-1 lg:flex-initial px-3 py-2 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/40 text-xs font-medium transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-border-all"></i> Tampak Atas
+                </button>
+            </div>
+        </div>
+
+        <!-- Grid: Left 3D Viewport (7 cols) | Right Control & Inspector (5 cols) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- 3D VIEWPORT COLUMN -->
+            <div class="lg:col-span-7 flex flex-col">
+                <div class="relative flex-1 min-h-[460px] sm:min-h-[540px] rounded-2xl overflow-hidden border border-cyan-500/30 blueprint-bg shadow-2xl flex flex-col justify-between">
+                    
+                    <!-- Top Overlay HUD inside 3D Viewport -->
+                    <div class="relative z-10 p-3 sm:p-4 flex flex-wrap items-start justify-between gap-2 pointer-events-none">
+                        <!-- View Mode Controls -->
+                        <div class="flex flex-wrap items-center gap-1.5 pointer-events-auto bg-slate-950/80 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80">
+                            <button id="btn-xray" onclick="toggleXray()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5" title="Tembus Pandang Pelat Atas">
+                                <i class="fa-solid fa-eye text-cyan-400"></i> <span>X-Ray Penutup</span>
+                            </button>
+                            <button id="btn-cutaway" onclick="toggleCutaway()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center gap-1.5" title="Buka Dinding Depan Wadah">
+                                <i class="fa-solid fa-Scissors text-cyan-400"></i> <span>Potongan Depan</span>
+                            </button>
+                            <button id="btn-labels" onclick="toggleLabels()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-tags text-cyan-400"></i> <span>Label 3D</span>
+                            </button>
+                        </div>
+
+                        <!-- Live Telemetry Pill -->
+                        <div class="pointer-events-auto bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl border border-cyan-500/30 flex items-center gap-4 text-xs font-mono">
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">TEGANGAN PUNCAK</span>
+                                <span id="hud-voltage" class="text-cyan-400 font-bold text-sm">0.0 V</span>
+                            </div>
+                            <div class="h-6 w-px bg-slate-700"></div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">TOTAL ENERGI</span>
+                                <span id="hud-energy" class="text-emerald-400 font-bold text-sm">0.00 J</span>
+                            </div>
+                            <div class="h-6 w-px bg-slate-700"></div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">PIJAKAN</span>
+                                <span id="hud-steps" class="text-amber-400 font-bold text-sm">0x</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- THREE.JS CANVAS CONTAINER -->
+                    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+                    <!-- 3D Floating HTML Callout Labels (Updated dynamically via JS projection) -->
+                    <div id="labels-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                        <div id="label-topPlate" class="absolute hidden transform -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-950/90 border border-cyan-400/60 text-[11px] font-mono text-cyan-200 whitespace-nowrap shadow-lg">
+                            1. Plat Penutup Atas
+                        </div>
+                        <div id="label-springs" class="absolute hidden transform -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-950/90 border border-cyan-400/60 text-[11px] font-mono text-cyan-200 whitespace-nowrap shadow-lg">
+                            2. Pegas Pengembali
+                        </div>
+                        <div id="label-plungers" class="absolute hidden transform -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-950/90 border border-amber-400/60 text-[11px] font-mono text-amber-200 whitespace-nowrap shadow-lg">
+                            3. Pendorong (Plunger)
+                        </div>
+                        <div id="label-piezo" class="absolute hidden transform -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-950/90 border border-emerald-400/60 text-[11px] font-mono text-emerald-200 whitespace-nowrap shadow-lg">
+                            4. Sensor Piezoelektrik (9x)
+                        </div>
+                        <div id="label-base" class="absolute hidden transform -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-950/90 border border-blue-400/60 text-[11px] font-mono text-blue-200 whitespace-nowrap shadow-lg">
+                            5. Rangka Bawah (Wadah)
+                        </div>
+                        <div id="label-circuit" class="absolute hidden transform -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-950/90 border border-purple-400/60 text-[11px] font-mono text-purple-200 whitespace-nowrap shadow-lg">
+                            6. Penyarah, Baterai & LED
+                        </div>
+                    </div>
+
+                    <!-- Bottom Overlay HUD inside 3D Viewport -->
+                    <div class="relative z-10 p-3 sm:p-4 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pt-8">
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                            
+                            <!-- Primary Action: STEP ON FLOOR -->
+                            <div class="sm:col-span-5 flex gap-2">
+                                <button id="btn-step" onmousedown="triggerStepHold(true)" onmouseup="triggerStepHold(false)" onmouseleave="triggerStepHold(false)" ontouchstart="triggerStepHold(true); event.preventDefault();" ontouchend="triggerStepHold(false)" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 active:scale-95 text-slate-950 font-extrabold text-sm tracking-wide shadow-lg shadow-cyan-500/30 transition flex items-center justify-center gap-2 pulse-ring select-none">
+                                    <i class="fa-solid fa-shoe-prints text-lg"></i>
+                                    <span>INJAK LANTAI!</span>
+                                </button>
+                                <button id="btn-autostep" onclick="toggleAutoStep()" class="px-3.5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold transition flex flex-col items-center justify-center shrink-0" title="Simulasi Jalan Kaki Otomatis">
+                                    <i id="autostep-icon" class="fa-solid fa-person-walking text-cyan-400 text-base"></i>
+                                    <span class="text-[10px] font-mono mt-0.5" id="autostep-label">AUTO</span>
+                                </button>
+                            </div>
+
+                            <!-- Exploded View Slider -->
+                            <div class="sm:col-span-7 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 flex flex-col justify-center">
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-arrows-up-down text-cyan-400"></i>
+                                        Mode Terurai (Exploded View)
+                                    </span>
+                                    <span id="explode-val" class="font-mono text-cyan-400 font-bold">0% (Rapat)</span>
+                                </div>
+                                <input id="slider-explode" type="range" min="0" max="100" value="0" oninput="updateExplode(this.value)" class="w-full">
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: TABS FOR TELEMETRY, COMPONENT INSPECTOR, CIRCUIT -->
+            <div class="lg:col-span-5 flex flex-col bg-slate-900/75 border border-cyan-500/25 rounded-2xl overflow-hidden shadow-xl">
+                
+                <!-- Panel Tabs -->
+                <div class="grid grid-cols-2 border-b border-slate-800 bg-slate-950/60 p-1.5 gap-1.5">
+                    <button id="tab-btn-sim" onclick="switchRightTab('sim')" class="py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wave-square"></i> Monitor & Sirkuit
+                    </button>
+                    <button id="tab-btn-parts" onclick="switchRightTab('parts')" class="py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i> Detail 6 Komponen
+                    </button>
+                </div>
+
+                <!-- TAB 1: TELEMETRY, CONTROLS & LIVE SCHEMATIC -->
+                <div id="tab-content-sim" class="p-4 sm:p-5 space-y-4 flex-1 flex flex-col justify-between overflow-y-auto">
+                    
+                    <!-- Weight & Config Sliders -->
+                    <div class="bg-slate-950/70 rounded-xl p-3.5 border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-weight-scale text-cyan-400"></i> Massa Pijakan Kaki (Beban)
+                            </label>
+                            <span id="weight-display" class="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">65 kg (~637 N)</span>
+                        </div>
+                        <input id="slider-weight" type="range" min="20" max="120" value="65" oninput="updateWeight(this.value)" class="w-full">
+                        
+                        <div class="grid grid-cols-3 gap-2 pt-1">
+                            <button onclick="setWiringMode('series-parallel')" id="wire-sp" class="py-1.5 px-2 rounded-lg text-[11px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold">Seri-Paralel (Ideal)</button>
+                            <button onclick="setWiringMode('series')" id="wire-s" class="py-1.5 px-2 rounded-lg text-[11px] font-mono bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200">Full Seri (Volt ↑)</button>
+                            <button onclick="setWiringMode('parallel')" id="wire-p" class="py-1.5 px-2 rounded-lg text-[11px] font-mono bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200">Full Paralel (Arus ↑)</button>
+                        </div>
+                    </div>
+
+                    <!-- Real-time Oscilloscope Waveform -->
+                    <div class="bg-slate-950 rounded-xl p-3 border border-slate-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Osiloskop Output Piezo (AC vs DC)
+                            </span>
+                            <div class="flex items-center gap-3 text-[10px] font-mono">
+                                <span class="flex items-center gap-1 text-cyan-400"><span class="w-2.5 h-0.5 bg-cyan-400 inline-block"></span> AC Piezo</span>
+                                <span class="flex items-center gap-1 text-amber-400"><span class="w-2.5 h-0.5 bg-amber-400 inline-block"></span> DC Penyarah</span>
+                            </div>
+                        </div>
+                        <canvas id="oscilloscope" width="420" height="105" class="w-full h-24 rounded-lg bg-blueprint-950 border border-cyan-950"></canvas>
+                    </div>
+
+                    <!-- Interactive Live Electronic Schematic -->
+                    <div class="bg-slate-950 rounded-xl p-3.5 border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-white flex items-center gap-1.5">
+                                <i class="fa-solid fa-diagram-project text-amber-400"></i> Aliran Arus Rangkaian Elektronik
+                            </span>
+                            <span id="circuit-status-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">STANDBY</span>
+                        </div>
+
+                        <!-- SVG Schematic matching the user's blueprint -->
+                        <div class="w-full overflow-x-auto py-1">
+                            <svg viewBox="0 0 460 115" class="w-full h-auto min-w-[360px]">
+                                <!-- Connecting Wires -->
+                                <path id="svg-wire-ac" d="M 65 40 L 125 40 M 65 75 L 125 75" stroke="#1e3a5f" stroke-width="3" fill="none" stroke-linecap="round"/>
+                                <path id="svg-wire-dc1" d="M 185 57 L 235 57" stroke="#1e3a5f" stroke-width="3" fill="none" stroke-linecap="round"/>
+                                <path id="svg-wire-dc2" d="M 295 57 L 345 57" stroke="#1e3a5f" stroke-width="3" fill="none" stroke-linecap="round"/>
+                                
+                                <!-- 1. Piezo Discs Block -->
+                                <rect x="8" y="22" width="58" height="70" rx="8" fill="#091930" stroke="#00d2ff" stroke-width="1.5"/>
+                                <circle id="svg-piezo-circle" cx="37" cy="48" r="14" fill="#1e293b" stroke="#fbbf24" stroke-width="2"/>
+                                <circle cx="37" cy="48" r="8" fill="#f8fafc"/>
+                                <text x="37" y="82" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">PIEZO (AC)</text>
+
+                                <!-- 2. Bridge Rectifier (Diode) -->
+                                <rect x="125" y="22" width="60" height="70" rx="8" fill="#091930" stroke="#00d2ff" stroke-width="1.5"/>
+                                <polygon id="svg-diode" points="145,45 145,69 167,57" fill="none" stroke="#38bdf8" stroke-width="2"/>
+                                <line x1="167" y1="45" x2="167" y2="69" stroke="#38bdf8" stroke-width="2"/>
+                                <text x="155" y="83" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">PENYARAH</text>
+
+                                <!-- 3. Capacitor Bank -->
+                                <rect x="235" y="22" width="60" height="70" rx="8" fill="#091930" stroke="#00d2ff" stroke-width="1.5"/>
+                                <line x1="258" y1="42" x2="258" y2="68" stroke="#34d399" stroke-width="2.5"/>
+                                <line x1="272" y1="42" x2="272" y2="68" stroke="#34d399" stroke-width="2.5"/>
+                                <text x="265" y="83" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">KAPASITOR</text>
+
+                                <!-- 4. Battery & LED Output -->
+                                <rect x="345" y="15" width="105" height="84" rx="8" fill="#091930" stroke="#00d2ff" stroke-width="1.5"/>
+                                <!-- Battery Bar -->
+                                <rect x="357" y="26" width="52" height="18" rx="3" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+                                <rect x="409" y="31" width="4" height="8" rx="1" fill="#64748b"/>
+                                <rect id="svg-batt-fill" x="359" y="28" width="12" height="14" rx="2" fill="#10b981"/>
+                                <text id="svg-batt-text" x="422" y="38" fill="#10b981" font-size="9" font-family="monospace" font-weight="bold">25%</text>
+                                
+                                <!-- LED Bulb -->
+                                <circle id="svg-led-glow" cx="383" cy="67" r="14" fill="#fbbf24" opacity="0"/>
+                                <circle id="svg-led-bulb" cx="383" cy="67" r="8" fill="#334155" stroke="#eab308" stroke-width="1.5"/>
+                                <text x="418" y="70" fill="#e2e8f0" font-size="9" font-family="monospace">LED / BEBAN</text>
+                            </svg>
+                        </div>
+
+                        <!-- Capacitor Charge Progress Bar -->
+                        <div class="pt-1">
+                            <div class="flex justify-between text-[11px] font-mono mb-1">
+                                <span class="text-slate-400">Muatan Kapasitor Penyimpan:</span>
+                                <span id="cap-percent" class="text-emerald-400 font-bold">0% (0.0V / 5.0V)</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                <div id="cap-bar" class="h-full bg-gradient-to-r from-cyan-500 via-emerald-400 to-amber-400 transition-all duration-150" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- TAB 2: 6 COMPONENT INSPECTOR (HIDDEN BY DEFAULT) -->
+                <div id="tab-content-parts" class="hidden p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto">
+                    <p class="text-xs text-slate-400">
+                        Klik salah satu komponen di bawah ini untuk <strong>menyorot bagian tersebut di model 3D</strong> dan membaca spesifikasi teknisnya:
+                    </p>
+
+                    <div id="parts-list" class="space-y-2.5">
+                        <!-- Populated via JS or static cards -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- SECTION 2: CARA KERJA & MEKANISME KONVERSI ENERGI -->
+    <section id="cara-kerja" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-800/80">
+        <div class="text-center max-w-3xl mx-auto mb-10">
+            <span class="text-xs font-mono uppercase tracking-widest text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">Prinsip Fisika & Elektro</span>
+            <h2 class="text-2xl sm:text-3xl font-bold text-white mt-3">Bagaimana Pijakan Kaki Menjadi Listrik?</h2>
+            <p class="text-sm text-slate-400 mt-2">
+                Sistem ini memanfaatkan <strong>Efek Piezoelektrik Langsung (Direct Piezoelectric Effect)</strong> pada kristal keramik <em>Lead Zirconate Titanate (PZT)</em> yang menghasilkan beda potensial listrik saat mengalami tekanan mekanis.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <!-- Step 1 -->
+            <div class="bg-slate-900/70 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-5 transition relative group">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-mono font-bold text-lg mb-4">01</div>
+                <h3 class="text-base font-bold text-white mb-2">Defleksi Mekanis (5–8 mm)</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Saat kaki menginjak <strong>Plat Penutup Atas</strong>, beban tubuh menekan 4 pegas sudut ke bawah sejauh 5 hingga 8 mm. Pegas berfungsi menjaga kenyamanan pijakan dan mengembalikan plat ke posisi semula.
+                </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="bg-slate-900/70 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-5 transition relative group">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center font-mono font-bold text-lg mb-4">02</div>
+                <h3 class="text-base font-bold text-white mb-2">Tekanan Pendorong ke PZT</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Tiang <strong>Pendorong (Plunger)</strong> di bawah plat atas memusatkan gaya tekan tepat ke bagian tengah <strong>Cakram Piezoelektrik</strong>. Deformasi mikro pada kristal keramik PZT melepaskan muatan listrik seketika.
+                </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="bg-slate-900/70 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-5 transition relative group">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-mono font-bold text-lg mb-4">03</div>
+                <h3 class="text-base font-bold text-white mb-2">Penyearah Gelombang (AC ke DC)</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Karena tekanan bersifat sesaat (saat diinjak dan dilepas), listrik yang keluar adalah arus bolak-balik (AC) bertegangan tinggi namun berarus kecil. <strong>Dioda Jembatan (Bridge Rectifier)</strong> mengubahnya menjadi arus searah (DC).
+                </p>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="bg-slate-900/70 border border-slate-800 hover:border-purple-500/40 rounded-2xl p-5 transition relative group">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center font-mono font-bold text-lg mb-4">04</div>
+                <h3 class="text-base font-bold text-white mb-2">Penyimpanan & Beban LED</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Impuls listrik DC ditampung terlebih dahulu di <strong>Kapasitor Bank</strong> untuk meratakan tegangan, kemudian dialirkan melalui modul <em>Buck-Boost Converter</em> untuk mengisi <strong>Baterai Li-Ion</strong> atau menyalakan <strong>Lampu LED</strong>.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: PANDUAN GAMBAR TEKNIS & TABEL SPESIFIKASI (BOM) -->
+    <section id="spesifikasi" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-800/80">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left: Tabel Spesifikasi Dimensi untuk Menggambar Blueprint -->
+            <div class="lg:col-span-7 bg-slate-900/70 border border-cyan-500/25 rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <span class="text-xs font-mono uppercase text-cyan-400">Referensi Gambar Teknis</span>
+                        <h3 class="text-xl font-bold text-white">Dimensi & Material Komponen (Skala 1:1)</h3>
+                    </div>
+                    <i class="fa-solid fa-compass-drafting text-2xl text-cyan-400"></i>
+                </div>
+                <p class="text-xs text-slate-400 mb-4">
+                    Gunakan ukuran standar prototipe di bawah ini saat Anda menggambar blueprint di kertas A4/A3 maupun software CAD:
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-cyan-300 font-mono uppercase">
+                                <th class="py-2.5 px-3">No</th>
+                                <th class="py-2.5 px-3">Nama Komponen</th>
+                                <th class="py-2.5 px-3">Dimensi / Ukuran</th>
+                                <th class="py-2.5 px-3">Rekomendasi Material</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/80 text-slate-300">
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">01</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Plat Penutup Atas (Top Plate)</td>
+                                <td class="py-2.5 px-3 font-mono">300 x 300 x 10 mm</td>
+                                <td class="py-2.5 px-3">Akrilik Tebal 10mm / Plat Aluminium + Karet Anti-Slip</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">02</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Pegas Pengembali (4 Sudut)</td>
+                                <td class="py-2.5 px-3 font-mono">Ø 22 mm, Tinggi 45 mm</td>
+                                <td class="py-2.5 px-3">Baja Pegas (Spring Steel) k = 1.5 - 2.5 N/mm</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">03</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Pendorong Tekan (Plungers)</td>
+                                <td class="py-2.5 px-3 font-mono">Ø 12 mm, Tinggi 32 mm</td>
+                                <td class="py-2.5 px-3">Baut Nilon / Silinder PLA 3D Print + Ujung Karet (Bumper)</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">04</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Sensor Piezoelektrik (9 - 25 pcs)</td>
+                                <td class="py-2.5 px-3 font-mono">Ø 35 mm, Tebal 0.5 mm</td>
+                                <td class="py-2.5 px-3">Cakram Kuningan + Kristal PZT-5H</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">05</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Bantalan Redam (Absorption Pad)</td>
+                                <td class="py-2.5 px-3 font-mono">270 x 270 x 5 mm</td>
+                                <td class="py-2.5 px-3">Spons EVA Keras / Karet Neoprene (Mencegah Piezo Pecah)</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">06</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Rangka Bawah / Wadah</td>
+                                <td class="py-2.5 px-3 font-mono">300 x 300 x 50 mm</td>
+                                <td class="py-2.5 px-3">Rangka Besi Hollow / Kayu Multiplex 15mm / PVC</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 font-mono text-cyan-400">07</td>
+                                <td class="py-2.5 px-3 font-semibold text-white">Modul Penyarah & Penyimpan</td>
+                                <td class="py-2.5 px-3 font-mono">Dioda 1N5819 + Elco 1000µF</td>
+                                <td class="py-2.5 px-3">Dioda Schottky (Low Drop) + Kapasitor 16V + Baterai 3.7V</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right: Tips Menggambar & Merakit agar Efisien -->
+            <div class="lg:col-span-5 bg-gradient-to-br from-blueprint-900 to-slate-900 border border-cyan-500/30 rounded-2xl p-6 space-y-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+                        <i class="fa-solid fa-lightbulb"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Tips Penting Desain & Perakitan</h3>
+                </div>
+
+                <ul class="space-y-3 text-xs text-slate-300">
+                    <li class="flex items-start gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i>
+                        <div>
+                            <strong class="text-white block">Gunakan Cincin Penyangga di Bawah Piezo:</strong>
+                            Agar kristal piezoelektrik bisa melengkung maksimal saat ditekan pendorong (menghasilkan voltase 3x lebih besar), beri bantalan karet berlubang di bawah tepi cakram kuningan.
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i>
+                        <div>
+                            <strong class="text-white block">Kombinasi Rangkaian Seri-Paralel:</strong>
+                            Jika menggunakan 9 sensor piezo, rangkai 3 grup secara <em>Seri</em> (untuk menaikkan tegangan melewati ambang dioda) lalu gabungkan ketiga grup tersebut secara <em>Paralel</em> (untuk melipatgandakan arus pengisian kapasitor).
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i>
+                        <div>
+                            <strong class="text-white block">Gunakan Dioda Schottky (1N5819 / BAT85):</strong>
+                            Hindari dioda silikon biasa (1N4007) karena memotong tegangan sebesar 0.7V. Dioda Schottky hanya memotong 0.2V sehingga energi pijakan kecil tidak terbuang.
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION 4: KALKULATOR ESTIMASI PROYEK SKALA NYATA -->
+    <section id="kalkulator" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-800/80 mb-12">
+        <div class="bg-slate-900/80 border border-cyan-500/30 rounded-2xl p-6 sm:p-8">
+            <div class="max-w-2xl mb-6">
+                <span class="text-xs font-mono uppercase text-emerald-400">Simulasi Implementasi Lapangan</span>
+                <h2 class="text-2xl font-bold text-white mt-1">Kalkulator Potensi Panen Energi Harian</h2>
+                <p class="text-xs sm:text-sm text-slate-400 mt-1">
+                    Hitung estimasi daya listrik yang dihasilkan jika ubin lantai piezoelektrik ini dipasang di lorong sekolah, stasiun kereta, atau pusat perbelanjaan.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <!-- Inputs -->
+                <div class="lg:col-span-6 space-y-5">
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1.5">
+                            <span class="text-slate-300">Jumlah Ubin Lantai Terpasang:</span>
+                            <span id="calc-tiles-val" class="font-mono font-bold text-cyan-400">20 Ubin</span>
+                        </div>
+                        <input id="calc-tiles" type="range" min="1" max="200" value="20" oninput="runProjectCalculator()" class="w-full">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1.5">
+                            <span class="text-slate-300">Rata-rata Pejalan Kaki per Jam:</span>
+                            <span id="calc-people-val" class="font-mono font-bold text-cyan-400">500 Orang/jam</span>
+                        </div>
+                        <input id="calc-people" type="range" min="50" max="5000" step="50" value="500" oninput="runProjectCalculator()" class="w-full">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1.5">
+                            <span class="text-slate-300">Durasi Operasional Aktif per Hari:</span>
+                            <span id="calc-hours-val" class="font-mono font-bold text-cyan-400">10 Jam/hari</span>
+                        </div>
+                        <input id="calc-hours" type="range" min="1" max="24" value="10" oninput="runProjectCalculator()" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Outputs -->
+                <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-shoe-prints text-cyan-400 text-xl mb-2"></i>
+                        <div class="text-[11px] font-mono text-slate-400 uppercase">Total Pijakan / Hari</div>
+                        <div id="res-steps" class="text-lg sm:text-xl font-mono font-extrabold text-white mt-1">100,000</div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">Langkah kaki</div>
+                    </div>
+
+                    <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-bolt text-amber-400 text-xl mb-2"></i>
+                        <div class="text-[11px] font-mono text-slate-400 uppercase">Energi Terpanen</div>
+                        <div id="res-joules" class="text-lg sm:text-xl font-mono font-extrabold text-amber-400 mt-1">120.0 kJ</div>
+                        <div id="res-wh" class="text-[10px] font-mono text-slate-400 mt-0.5">~33.3 Wh / hari</div>
+                    </div>
+
+                    <div class="col-span-2 sm:col-span-1 bg-slate-950/90 border border-emerald-500/30 rounded-xl p-4 text-center">
+                        <i class="fa-solid fa-lightbulb text-emerald-400 text-xl mb-2"></i>
+                        <div class="text-[11px] font-mono text-slate-400 uppercase">Aplikasi Beban</div>
+                        <div id="res-ledHours" class="text-lg sm:text-xl font-mono font-extrabold text-emerald-400 mt-1">11.1 Jam</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Lampu Koridor LED 3W</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p><strong>PIEZOSTEP™ 3D Engineering Blueprint & Simulator</strong> — Dirancang untuk Presentasi & Prototyping.</p>
+            <p class="font-mono text-slate-400">Klik & Geser pada kanvas 3D untuk memutar sudut pandang.</p>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT: 3D SIMULATION, AUDIO SYNTH, OSCILLOSCOPE & UI LOGIC -->
+    <script>
+        // ==========================================
+        // 1. DATA KOMPONEN UNTUK INSPEKTOR 3D
+        // ==========================================
+        const COMPONENTS_DATA = [
+            {
+                id: 'topPlate',
+                number: '01',
+                name: 'Plat Penutup Atas (Top Plate)',
+                spec: '300 x 300 x 10 mm | Akrilik / Aluminium + Karet',
+                role: 'Menerima gaya pijakan kaki langsung dari pejalan kaki dan meneruskannya secara merata ke pendorong di bawahnya.',
+                color: 'cyan'
+            },
+            {
+                id: 'springs',
+                number: '02',
+                name: 'Pegas Pengembali (Return Springs)',
+                spec: '4x Pegas Baja Sudut | Tinggi 45 mm, Ø 22 mm',
+                role: 'Menahan beban berlebih dan mengangkat kembali Plat Penutup Atas ke posisi semula setelah pijakan kaki diangkat.',
+                color: 'cyan'
+            },
+            {
+                id: 'plungers',
+                number: '03',
+                name: 'Pendorong Tekan (Plungers)',
+                spec: '9x Silinder Penekan | Ø 12 mm + Bumper Karet',
+                role: 'Memfokuskan tekanan dari plat atas tepat ke titik tengah setiap keping sensor piezoelektrik agar menghasilkan regangan maksimum.',
+                color: 'amber'
+            },
+            {
+                id: 'piezo',
+                number: '04',
+                name: 'Susunan Sensor Piezoelektrik (PZT)',
+                spec: '9x Cakram Piezo Ø 35 mm | Susunan Seri-Paralel',
+                role: 'Komponen inti pengubah energi: menghasilkan tegangan listrik AC saat keping keramik PZT melengkung akibat tekanan pendorong.',
+                color: 'emerald'
+            },
+            {
+                id: 'base',
+                number: '05',
+                name: 'Rangka Bawah / Wadah & Bantalan',
+                spec: '300 x 300 x 50 mm | Besi Hollow / Kayu + Busa EVA',
+                role: 'Melindungi seluruh komponen mekanis dan sensor di bagian dalam serta menjaga defleksi maksimum agar sensor tidak pecah.',
+                color: 'blue'
+            },
+            {
+                id: 'circuit',
+                number: '06',
+                name: 'Penyarah, Penyimpan & Beban LED',
+                spec: 'Dioda Jembatan + Kapasitor Bank + Baterai/LED',
+                role: 'Menyearahkan arus AC dari piezo menjadi DC, menyimpannya di dalam kapasitor/baterai, dan menyalakan lampu indikator LED.',
+                color: 'purple'
+            }
+        ];
+
+        // ==========================================
+        // 2. STATE SIMULASI GLOBAL
+        // ==========================================
+        const simState = {
+            compression: 0,         // 0.0 (rest) to 1.0 (fully pressed)
+            targetCompression: 0,
+            explodeFactor: 0,       // 0.0 (assembled) to 1.0 (fully exploded)
+            targetExplode: 0,
+            xrayMode: false,
+            cutawayMode: true,      // Front wall transparent so user can see inside easily
+            showLabels: true,
+            weightKg: 65,
+            wiringMode: 'series-parallel', // 'series-parallel', 'series', 'parallel'
+            stepCount: 0,
+            totalEnergyJoules: 0,
+            capacitorVoltage: 0,    // 0.0 to 5.0V
+            batteryPercent: 25,
+            currentPeakVoltage: 0,
+            autoStep: false,
+            autoStepTimer: null,
+            soundEnabled: true,
+            selectedPart: null,
+            ledGlowIntensity: 0
+        };
+
+        // ==========================================
+        // 3. WEB AUDIO API (SYNTHESIZED SOUND EFFECTS)
+        // ==========================================
+        let audioCtx = null;
+        function playStepSound(voltage) {
+            if (!simState.soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+
+                // 1. Mechanical thud (low frequency)
+                const oscThud = audioCtx.createOscillator();
+                const gainThud = audioCtx.createGain();
+                oscThud.type = 'triangle';
+                oscThud.frequency.setValueAtTime(110, now);
+                oscThud.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+                gainThud.gain.setValueAtTime(0.25, now);
+                gainThud.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                oscThud.connect(gainThud);
+                gainThud.connect(audioCtx.destination);
+                oscThud.start(now);
+                oscThud.stop(now + 0.15);
+
+                // 2. Electrical piezo chime (high frequency proportional to voltage)
+                const oscSpark = audioCtx.createOscillator();
+                const gainSpark = audioCtx.createGain();
+                oscSpark.type = 'sine';
+                const baseFreq = 520 + Math.min(voltage * 25, 600);
+                oscSpark.frequency.setValueAtTime(baseFreq, now);
+                oscSpark.frequency.exponentialRampToValueAtTime(baseFreq * 1.4, now + 0.18);
+                gainSpark.gain.setValueAtTime(0.08, now);
+                gainSpark.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                oscSpark.connect(gainSpark);
+                gainSpark.connect(audioCtx.destination);
+                oscSpark.start(now);
+                oscSpark.stop(now + 0.22);
+            } catch (e) {
+                // Ignore audio errors if blocked by browser autoplay policy
+            }
+        }
+
+        function toggleSound() {
+            simState.soundEnabled = !simState.soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const text = document.getElementById('sound-text');
+            if (simState.soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high';
+                text.textContent = 'SFX ON';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                text.textContent = 'SFX OFF';
+            }
+        }
+
+        // ==========================================
+        // 4. THREE.JS 3D SCENE & MODEL CONSTRUCTION
+        // ==========================================
+        let scene, camera, renderer;
+        let tileGroup, topPlateGroup, springsGroup, plungersGroup, piezoGroup, baseGroup, circuitGroup, forceArrowsGroup;
+        let frontWallMesh, topPlateMesh, ledBulbMesh, ledPointLight;
+        let springMeshes = [];
+        let piezoGlowRings = [];
+
+        // Camera spherical coordinates for smooth Orbit & Presets
+        const camControl = {
+            theta: 0.65,        // Horizontal angle (rad)
+            phi: 1.05,          // Vertical angle from top (rad)
+            radius: 11.5,
+            targetTheta: 0.65,
+            targetPhi: 1.05,
+            targetRadius: 11.5,
+            lookAtY: 0.3,
+            targetLookAtY: 0.3,
+            isDragging: false,
+            prevX: 0,
+            prevY: 0
+        };
+
+        // Anchor points in 3D for floating labels
+        const labelAnchors = {
+            topPlate: new THREE.Vector3(0, 1.4, 0),
+            springs: new THREE.Vector3(-2.1, 0.5, 2.1),
+            plungers: new THREE.Vector3(0, 0.7, 1.4),
+            piezo: new THREE.Vector3(0, -0.35, 1.4),
+            base: new THREE.Vector3(-2.4, -0.9, 2.4),
+            circuit: new THREE.Vector3(4.2, -0.5, 0)
+        };
+
+        function createFootprintTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // Dark industrial tile surface
+            ctx.fillStyle = '#0f2542';
+            ctx.fillRect(0, 0, 512, 512);
+
+            // Anti-slip technical grid pattern
+            ctx.strokeStyle = 'rgba(0, 210, 255, 0.18)';
+            ctx.lineWidth = 2;
+            const step = 32;
+            for (let i = 0; i <= 512; i += step) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
+            }
+
+            // Outer border frame
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(18, 18, 476, 476);
+
+            // Draw two stylized glowing footprints in the center
+            function drawFoot(cx, cy, angle) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(angle);
+
+                ctx.fillStyle = 'rgba(0, 210, 255, 0.28)';
+                ctx.strokeStyle = '#38e8ff';
+                ctx.lineWidth = 3;
+
+                // Sole (upper part)
+                ctx.beginPath();
+                ctx.ellipse(0, -35, 34, 58, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Heel (lower part)
+                ctx.beginPath();
+                ctx.ellipse(0, 55, 26, 32, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Hatching lines inside footprint (like the user's blueprint!)
+                ctx.strokeStyle = 'rgba(56, 232, 255, 0.45)';
+                ctx.lineWidth = 2;
+                for (let y = -75; y <= 75; y += 10) {
+                    ctx.beginPath();
+                    ctx.moveTo(-22, y);
+                    ctx.lineTo(22, y - 8);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            drawFoot(200, 265, -0.08);
+            drawFoot(312, 245, 0.08);
+
+            // Technical Label on Tile
+            ctx.fillStyle = '#38e8ff';
+            ctx.font = 'bold 20px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('PIEZOSTEP™ HARVESTER', 256, 54);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 4;
+            return texture;
+        }
+
+        function createHelixSpringGeometry(radius = 0.28, height = 1.0, turns = 6, tubularSegments = 80, tubeRadius = 0.045) {
+            class HelixCurve extends THREE.Curve {
+                getPoint(t) {
+                    const angle = t * Math.PI * 2 * turns;
+                    const x = radius * Math.cos(angle);
+                    const z = radius * Math.sin(angle);
+                    const y = t * height;
+                    return new THREE.Vector3(x, y, z);
+                }
+            }
+            return new THREE.TubeGeometry(new HelixCurve(), tubularSegments, tubeRadius, 12, false);
+        }
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth || 600;
+            const height = container.clientHeight || 500;
+
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.75);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight1.position.set(8, 14, 10);
+            dirLight1.castShadow = true;
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x00d2ff, 0.45);
+            dirLight2.position.set(-10, 6, -8);
+            scene.add(dirLight2);
+
+            // Subtle floor reference grid under the assembly
+            const gridHelper = new THREE.GridHelper(16, 16, 0x00d2ff, 0x1e3a5f);
+            gridHelper.position.y = -1.35;
+            gridHelper.material.opacity = 0.25;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+
+            // Main Root Group
+            tileGroup = new THREE.Group();
+            tileGroup.position.x = -0.6; // Slight shift left so external battery module fits nicely on right
+            scene.add(tileGroup);
+
+            // ------------------------------------------------
+            // 1. BASE FRAME (RANGKA BAWAH / WADAH) & ABSORPTION PAD
+            // ------------------------------------------------
+            baseGroup = new THREE.Group();
+            tileGroup.add(baseGroup);
+
+            const baseMat = new THREE.MeshStandardMaterial({
+                color: 0x0f294d,
+                roughness: 0.4,
+                metalness: 0.5
+            });
+            const edgeLineMat = new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.55 });
+
+            function addBoxWithEdges(w, h, d, x, y, z, mat, parent) {
+                const geo = new THREE.BoxGeometry(w, h, d);
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, edgeLineMat);
+                mesh.add(line);
+
+                parent.add(mesh);
+                return mesh;
+            }
+
+            // Bottom slab (5.0 x 0.25 x 5.0 units -> represents 300x300mm)
+            addBoxWithEdges(5.0, 0.25, 5.0, 0, -1.0, 0, baseMat, baseGroup);
+            // Back wall
+            addBoxWithEdges(5.0, 0.95, 0.25, 0, -0.4, -2.375, baseMat, baseGroup);
+            // Left wall
+            addBoxWithEdges(0.25, 0.95, 4.5, -2.375, -0.4, 0, baseMat, baseGroup);
+            // Right wall
+            addBoxWithEdges(0.25, 0.95, 4.5, 2.375, -0.4, 0, baseMat, baseGroup);
+
+            // Front wall (Cutaway capable so 2D cross section is super clear!)
+            const frontWallMat = new THREE.MeshStandardMaterial({
+                color: 0x0f294d,
+                roughness: 0.4,
+                metalness: 0.5,
+                transparent: true,
+                opacity: 0.15
+            });
+            frontWallMesh = addBoxWithEdges(4.5, 0.95, 0.25, 0, -0.4, 2.375, frontWallMat, baseGroup);
+
+            // Rubber Absorption Pad (Bantalan Redam) inside base
+            const padMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 });
+            addBoxWithEdges(4.4, 0.14, 4.4, 0, -0.8, 0, padMat, baseGroup);
+
+            // ------------------------------------------------
+            // 2. PIEZOELECTRIC SENSOR ARRAY (3x3 = 9 DISCS)
+            // ------------------------------------------------
+            piezoGroup = new THREE.Group();
+            tileGroup.add(piezoGroup);
+
+            // Sub-board PCB / mounting plate
+            const pcbMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.5, metalness: 0.3 });
+            addBoxWithEdges(4.2, 0.08, 4.2, 0, -0.68, 0, pcbMat, piezoGroup);
+
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.25 });
+            const ceramicMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.1 });
+            const ringWasherMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
+
+            const spacing = 1.25;
+            for (let row = -1; row <= 1; row++) {
+                for (let col = -1; col <= 1; col++) {
+                    const px = col * spacing;
+                    const pz = row * spacing;
+
+                    const singlePiezo = new THREE.Group();
+                    singlePiezo.position.set(px, -0.60, pz);
+
+                    // Support washer underneath
+                    const washer = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.04, 24), ringWasherMat);
+                    washer.position.y = -0.02;
+                    singlePiezo.add(washer);
+
+                    // Brass Disc (Outer)
+                    const brassDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.03, 32), brassMat);
+                    brassDisc.position.y = 0.015;
+                    singlePiezo.add(brassDisc);
+
+                    // White PZT Ceramic Disc (Inner)
+                    const ceramicDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.035, 32), ceramicMat);
+                    ceramicDisc.position.y = 0.025;
+                    singlePiezo.add(ceramicDisc);
+
+                    // Dynamic Electric Glow Ring when pressed
+                    const glowRingMat = new THREE.MeshBasicMaterial({
+                        color: 0x00d2ff,
+                        transparent: true,
+                        opacity: 0.0,
+                        side: THREE.DoubleSide
+                    });
+                    const glowRing = new THREE.Mesh(new THREE.RingGeometry(0.33, 0.52, 32), glowRingMat);
+                    glowRing.rotation.x = -Math.PI / 2;
+                    glowRing.position.y = 0.045;
+                    singlePiezo.add(glowRing);
+                    piezoGlowRings.push(glowRingMat);
+
+                    piezoGroup.add(singlePiezo);
+                }
+            }
+
+            // Internal red/blue wiring traces on the piezo board
+            const wireTraceMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            for (let r = -1; r <= 1; r++) {
+                const trace = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.04), wireTraceMat);
+                trace.position.set(0, -0.62, r * spacing + 0.35);
+                piezoGroup.add(trace);
+            }
+
+            // ------------------------------------------------
+            // 3. RETURN SPRINGS (4 CORNER HELICAL SPRINGS)
+            // ------------------------------------------------
+            springsGroup = new THREE.Group();
+            tileGroup.add(springsGroup);
+
+            const springMat = new THREE.MeshStandardMaterial({
+                color: 0x94a3b8,
+                metalness: 0.85,
+                roughness: 0.2
+            });
+
+            const springCorners = [
+                [-1.85, -1.85],
+                [ 1.85, -1.85],
+                [-1.85,  1.85],
+                [ 1.85,  1.85]
+            ];
+
+            springCorners.forEach(([sx, sz]) => {
+                const springGeo = createHelixSpringGeometry(0.26, 1.35, 6.5, 75, 0.042);
+                const springMesh = new THREE.Mesh(springGeo, springMat);
+                springMesh.position.set(sx, -0.65, sz);
+                springsGroup.add(springMesh);
+                springMeshes.push(springMesh);
+            });
+
+            // ------------------------------------------------
+            // 4. PLUNGERS (PENDORONG TEKAN - 9 PINS)
+            // ------------------------------------------------
+            plungersGroup = new THREE.Group();
+            tileGroup.add(plungersGroup);
+
+            const plungerMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.5, roughness: 0.3 });
+            const bumperMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.6 });
+
+            for (let row = -1; row <= 1; row++) {
+                for (let col = -1; col <= 1; col++) {
+                    const px = col * spacing;
+                    const pz = row * spacing;
+
+                    const pinGroup = new THREE.Group();
+                    pinGroup.position.set(px, 0.72, pz);
+
+                    // Upper flange collar
+                    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.08, 20), plungerMat);
+                    collar.position.y = -0.04;
+                    pinGroup.add(collar);
+
+                    // Main shaft extending down toward piezo
+                    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.05, 20), plungerMat);
+                    shaft.position.y = -0.55;
+                    pinGroup.add(shaft);
+
+                    // Bottom rubber pressure tip (contacts piezo center)
+                    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 20), bumperMat);
+                    tip.position.y = -1.10;
+                    pinGroup.add(tip);
+
+                    plungersGroup.add(pinGroup);
+                }
+            }
+
+            // ------------------------------------------------
+            // 5. TOP PRESSURE PLATE (PLAT PENUTUP ATAS)
+            // ------------------------------------------------
+            topPlateGroup = new THREE.Group();
+            tileGroup.add(topPlateGroup);
+
+            const footTex = createFootprintTexture();
+            const sidePlateMat = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.4, metalness: 0.3 });
+            const topSurfaceMat = new THREE.MeshStandardMaterial({ map: footTex, roughness: 0.35, metalness: 0.2 });
+
+            const plateMaterials = [
+                sidePlateMat, // right
+                sidePlateMat, // left
+                topSurfaceMat,// top
+                sidePlateMat, // bottom
+                sidePlateMat, // front
+                sidePlateMat  // back
+            ];
+
+            const topPlateGeo = new THREE.BoxGeometry(5.0, 0.28, 5.0);
+            topPlateMesh = new THREE.Mesh(topPlateGeo, plateMaterials);
+            topPlateMesh.position.set(0, 0.86, 0);
+            topPlateMesh.castShadow = true;
+
+            const topPlateEdges = new THREE.LineSegments(new THREE.EdgesGeometry(topPlateGeo), edgeLineMat);
+            topPlateMesh.add(topPlateEdges);
+            topPlateGroup.add(topPlateMesh);
+
+            // ------------------------------------------------
+            // 6. FORCE ARROWS ABOVE PLATE (GAYA PIJAKAN KAKI)
+            // ------------------------------------------------
+            forceArrowsGroup = new THREE.Group();
+            tileGroup.add(forceArrowsGroup);
+
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.85 });
+            const arrowPositions = [-1.4, -0.7, 0, 0.7, 1.4];
+            arrowPositions.forEach((ax) => {
+                const arrow = new THREE.Group();
+                arrow.position.set(ax, 1.85, 0);
+
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.55, 12), arrowMat);
+                stem.position.y = 0.25;
+                arrow.add(stem);
+
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.25, 16), arrowMat);
+                cone.rotation.x = Math.PI;
+                cone.position.y = -0.05;
+                arrow.add(cone);
+
+                forceArrowsGroup.add(arrow);
+            });
+
+            // ------------------------------------------------
+            // 7. EXTERNAL CIRCUIT, RECTIFIER, BATTERY & LED MODULE
+            // ------------------------------------------------
+            circuitGroup = new THREE.Group();
+            tileGroup.add(circuitGroup);
+
+            // Output wire curving from right wall to Rectifier Box
+            const cableCurve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(2.3, -0.6, 0),
+                new THREE.Vector3(3.0, -0.6, 0.2),
+                new THREE.Vector3(3.5, -0.75, 0)
+            ]);
+            const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.055, 12, false);
+            const cableMesh = new THREE.Mesh(cableGeo, new THREE.MeshStandardMaterial({ color: 0x00d2ff, roughness: 0.4 }));
+            circuitGroup.add(cableMesh);
+
+            // Rectifier & Capacitor Module Box
+            const rectBoxMat = new THREE.MeshStandardMaterial({ color: 0x0f294d, metalness: 0.5, roughness: 0.4 });
+            addBoxWithEdges(1.1, 0.55, 0.85, 3.95, -0.75, 0, rectBoxMat, circuitGroup);
+
+            // Two Electrolytic Capacitors on top of the module
+            const capMat = new THREE.MeshStandardMaterial({ color: 0x10b981, metalness: 0.6, roughness: 0.3 });
+            const cap1 = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.35, 20), capMat);
+            cap1.position.set(3.75, -0.35, -0.15);
+            circuitGroup.add(cap1);
+            const cap2 = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.35, 20), capMat);
+            cap2.position.set(3.75, -0.35, 0.18);
+            circuitGroup.add(cap2);
+
+            // LED Lamp Post / Indicator Dome
+            const postStand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.1, 16), plungerMat);
+            postStand.position.set(4.25, -0.05, 0);
+            circuitGroup.add(postStand);
+
+            const ledBulbGeo = new THREE.SphereGeometry(0.26, 24, 24);
+            const ledBulbMat = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                emissive: 0xf59e0b,
+                emissiveIntensity: 0.15,
+                roughness: 0.2
+            });
+            ledBulbMesh = new THREE.Mesh(ledBulbGeo, ledBulbMat);
+            ledBulbMesh.position.set(4.25, 0.6, 0);
+            circuitGroup.add(ledBulbMesh);
+
+            ledPointLight = new THREE.PointLight(0xfbbf24, 0, 5);
+            ledPointLight.position.set(4.25, 0.6, 0);
+            circuitGroup.add(ledPointLight);
+
+            // Setup Mouse & Touch Camera Controls
+            setupCameraInteractions(container);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupCameraInteractions(container) {
+            container.addEventListener('mousedown', (e) => {
+                camControl.isDragging = true;
+                camControl.prevX = e.clientX;
+                camControl.prevY = e.clientY;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!camControl.isDragging) return;
+                const dx = e.clientX - camControl.prevX;
+                const dy = e.clientY - camControl.prevY;
+                camControl.prevX = e.clientX;
+                camControl.prevY = e.clientY;
+
+                camControl.targetTheta -= dx * 0.008;
+                camControl.targetPhi = Math.max(0.15, Math.min(Math.PI / 2 - 0.02, camControl.targetPhi - dy * 0.008));
+            });
+
+            window.addEventListener('mouseup', () => {
+                camControl.isDragging = false;
+            });
+
+            // Touch rotation
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    camControl.isDragging = true;
+                    camControl.prevX = e.touches[0].clientX;
+                    camControl.prevY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!camControl.isDragging || e.touches.length !== 1) return;
+                const dx = e.touches[0].clientX - camControl.prevX;
+                const dy = e.touches[0].clientY - camControl.prevY;
+                camControl.prevX = e.touches[0].clientX;
+                camControl.prevY = e.touches[0].clientY;
+
+                camControl.targetTheta -= dx * 0.008;
+                camControl.targetPhi = Math.max(0.15, Math.min(Math.PI / 2 - 0.02, camControl.targetPhi - dy * 0.008));
+            }, { passive: true });
+
+            window.addEventListener('touchend', () => {
+                camControl.isDragging = false;
+            });
+
+            // Mouse wheel zoom
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                camControl.targetRadius = Math.max(6.5, Math.min(18, camControl.targetRadius + e.deltaY * 0.006));
+            }, { passive: false });
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            if (!container || !renderer || !camera) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        // ==========================================
+        // 5. CAMERA PRESETS & VIEW MODES
+        // ==========================================
+        function setCameraPreset(preset) {
+            if (preset === 'isometric') {
+                camControl.targetTheta = 0.65;
+                camControl.targetPhi = 1.05;
+                camControl.targetRadius = 11.5;
+            } else if (preset === 'side') {
+                // Directly from the front/side (matches the 2D Cross-Section Blueprint!)
+                camControl.targetTheta = 0.0;
+                camControl.targetPhi = 1.48;
+                camControl.targetRadius = 10.2;
+                // Ensure front cutaway is open so side cross-section is crystal clear
+                if (!simState.cutawayMode) toggleCutaway();
+            } else if (preset === 'top') {
+                camControl.targetTheta = 0.0;
+                camControl.targetPhi = 0.18;
+                camControl.targetRadius = 11.5;
+                // Turn on X-Ray automatically so top view shows the 9 piezo array
+                if (!simState.xrayMode) toggleXray();
+            }
+        }
+
+        function toggleXray() {
+            simState.xrayMode = !simState.xrayMode;
+            const btn = document.getElementById('btn-xray');
+            if (topPlateMesh && Array.isArray(topPlateMesh.material)) {
+                topPlateMesh.material.forEach(mat => {
+                    mat.transparent = simState.xrayMode;
+                    mat.opacity = simState.xrayMode ? 0.28 : 1.0;
+                });
+            }
+            if (simState.xrayMode) {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center gap-1.5';
+            } else {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+            }
+        }
+
+        function toggleCutaway() {
+            simState.cutawayMode = !simState.cutawayMode;
+            const btn = document.getElementById('btn-cutaway');
+            if (frontWallMesh) {
+                frontWallMesh.material.opacity = simState.cutawayMode ? 0.12 : 1.0;
+            }
+            if (simState.cutawayMode) {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center gap-1.5';
+            } else {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+            }
+        }
+
+        function toggleLabels() {
+            simState.showLabels = !simState.showLabels;
+            const btn = document.getElementById('btn-labels');
+            const container = document.getElementById('labels-container');
+            container.style.display = simState.showLabels ? 'block' : 'none';
+            if (simState.showLabels) {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center gap-1.5';
+            } else {
+                btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+            }
+        }
+
+        function updateExplode(val) {
+            const pct = parseInt(val, 10);
+            simState.targetExplode = pct / 100;
+            const label = document.getElementById('explode-val');
+            label.textContent = pct === 0 ? '0% (Rapat)' : `${pct}% (Terurai)`;
+        }
+
+        // ==========================================
+        // 6. FOOTSTEP PHYSICS & ENERGY HARVESTING LOGIC
+        // ==========================================
+        function triggerStepHold(isPressed) {
+            if (isPressed) {
+                simState.targetCompression = 1.0;
+                processElectricalPulse(1.0);
+            } else {
+                if (simState.targetCompression > 0.5) {
+                    // Release pulse (piezo generates negative/release AC wave when returning)
+                    processElectricalPulse(-0.55);
+                }
+                simState.targetCompression = 0.0;
+            }
+        }
+
+        function processElectricalPulse(directionSign) {
+            // Calculate peak voltage & energy based on weightKg and wiringMode
+            const weightFactor = simState.weightKg / 65; // normalized around 65kg
+            let baseVolts = 18.5 * weightFactor;
+            let currentFactor = 1.0;
+
+            if (simState.wiringMode === 'series') {
+                baseVolts *= 2.2;
+                currentFactor = 0.45;
+            } else if (simState.wiringMode === 'parallel') {
+                baseVolts *= 0.45;
+                currentFactor = 2.2;
+            }
+
+            const pulseVolts = baseVolts * Math.abs(directionSign);
+            simState.currentPeakVoltage = pulseVolts;
+
+            // Push spike into oscilloscope buffer
+            pushOscilloscopePulse(baseVolts * directionSign);
+
+            if (directionSign > 0) {
+                simState.stepCount++;
+                // Energy harvested per footstep (~1.2 Joules for a 9-element 300x300mm tile at 65kg)
+                const stepJoules = 1.2 * weightFactor;
+                simState.totalEnergyJoules += stepJoules;
+
+                // Charge capacitor (0 to 5V)
+                simState.capacitorVoltage = Math.min(5.0, simState.capacitorVoltage + (0.45 * weightFactor * currentFactor));
+                if (simState.capacitorVoltage >= 4.8) {
+                    simState.batteryPercent = Math.min(100, simState.batteryPercent + 1);
+                }
+
+                // Trigger 3D LED & Piezo ring glow
+                simState.ledGlowIntensity = 1.0;
+                playStepSound(pulseVolts);
+            } else {
+                simState.ledGlowIntensity = Math.max(simState.ledGlowIntensity, 0.5);
+            }
+
+            updateTelemetryUI();
+        }
+
+        function updateTelemetryUI() {
+            document.getElementById('hud-voltage').textContent = `${simState.currentPeakVoltage.toFixed(1)} V`;
+            document.getElementById('hud-energy').textContent = `${simState.totalEnergyJoules.toFixed(2)} J`;
+            document.getElementById('hud-steps').textContent = `${simState.stepCount}x`;
+
+            const capPct = Math.round((simState.capacitorVoltage / 5.0) * 100);
+            document.getElementById('cap-percent').textContent = `${capPct}% (${simState.capacitorVoltage.toFixed(1)}V / 5.0V)`;
+            document.getElementById('cap-bar').style.width = `${capPct}%`;
+
+            // Update SVG Battery
+            const battFill = document.getElementById('svg-batt-fill');
+            const battText = document.getElementById('svg-batt-text');
+            battFill.setAttribute('width', Math.max(4, (simState.batteryPercent / 100) * 48));
+            battText.textContent = `${simState.batteryPercent}%`;
+        }
+
+        function updateWeight(val) {
+            simState.weightKg = parseInt(val, 10);
+            const newtons = Math.round(simState.weightKg * 9.81);
+            document.getElementById('weight-display').textContent = `${simState.weightKg} kg (~${newtons} N)`;
+        }
+
+        function setWiringMode(mode) {
+            simState.wiringMode = mode;
+            const modes = {
+                'series-parallel': 'wire-sp',
+                'series': 'wire-s',
+                'parallel': 'wire-p'
+            };
+            Object.keys(modes).forEach(k => {
+                const el = document.getElementById(modes[k]);
+                if (k === mode) {
+                    el.className = 'py-1.5 px-2 rounded-lg text-[11px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold';
+                } else {
+                    el.className = 'py-1.5 px-2 rounded-lg text-[11px] font-mono bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200';
+                }
+            });
+        }
+
+        function toggleAutoStep() {
+            simState.autoStep = !simState.autoStep;
+            const btn = document.getElementById('btn-autostep');
+            const label = document.getElementById('autostep-label');
+
+            if (simState.autoStep) {
+                btn.className = 'px-3.5 py-3 rounded-xl bg-amber-500/25 text-amber-300 border border-amber-400 text-xs font-semibold transition flex flex-col items-center justify-center shrink-0';
+                label.textContent = 'AKTIF';
+                simState.autoStepTimer = setInterval(() => {
+                    triggerStepHold(true);
+                    setTimeout(() => triggerStepHold(false), 260);
+                }, 850);
+            } else {
+                btn.className = 'px-3.5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold transition flex flex-col items-center justify-center shrink-0';
+                label.textContent = 'AUTO';
+                clearInterval(simState.autoStepTimer);
+                triggerStepHold(false);
+            }
+        }
+
+        // ==========================================
+        // 7. REAL-TIME OSCILLOSCOPE CANVAS
+        // ==========================================
+        const oscHistory = new Array(120).fill({ ac: 0, dc: 0 });
+        let currentOscAC = 0;
+
+        function pushOscilloscopePulse(volts) {
+            currentOscAC = volts;
+        }
+
+        function updateOscilloscope() {
+            const canvas = document.getElementById('oscilloscope');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const midY = h / 2;
+
+            // Shift history
+            const dcVal = Math.abs(currentOscAC) * 0.85;
+            oscHistory.push({ ac: currentOscAC, dc: dcVal });
+            if (oscHistory.length > 120) oscHistory.shift();
+
+            // Damped oscillation decay
+            currentOscAC *= -0.62;
+            if (Math.abs(currentOscAC) < 0.2) currentOscAC = 0;
+
+            // Clear & draw grid
+            ctx.fillStyle = '#040d1a';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = 'rgba(0, 210, 255, 0.12)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, midY); ctx.lineTo(w, midY);
+            ctx.stroke();
+
+            // Draw AC Waveform (Cyan)
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            oscHistory.forEach((pt, idx) => {
+                const x = (idx / 119) * w;
+                const y = midY - (pt.ac / 42) * (midY - 8);
+                if (idx === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Draw Rectified DC Waveform (Amber)
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            oscHistory.forEach((pt, idx) => {
+                const x = (idx / 119) * w;
+                const y = midY - (pt.dc / 42) * (midY - 8);
+                if (idx === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        // ==========================================
+        // 8. RIGHT PANEL TABS & COMPONENT INSPECTOR
+        // ==========================================
+        function switchRightTab(tab) {
+            const simContent = document.getElementById('tab-content-sim');
+            const partsContent = document.getElementById('tab-content-parts');
+            const btnSim = document.getElementById('tab-btn-sim');
+            const btnParts = document.getElementById('tab-btn-parts');
+
+            if (tab === 'sim') {
+                simContent.classList.remove('hidden');
+                partsContent.classList.add('hidden');
+                btnSim.className = 'py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center justify-center gap-2';
+                btnParts.className = 'py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition flex items-center justify-center gap-2';
+            } else {
+                simContent.classList.add('hidden');
+                partsContent.classList.remove('hidden');
+                btnParts.className = 'py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition flex items-center justify-center gap-2';
+                btnSim.className = 'py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition flex items-center justify-center gap-2';
+            }
+        }
+
+        function renderPartsInspector() {
+            const container = document.getElementById('parts-list');
+            container.innerHTML = COMPONENTS_DATA.map(part => `
+                <div onclick="focusComponent3D('${part.id}')" id="card-part-${part.id}" class="cursor-pointer p-3 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/50 transition">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-white flex items-center gap-2">
+                            <span class="px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono text-[10px]">${part.number}</span>
+                            ${part.name}
+                        </span>
+                        <i class="fa-solid fa-crosshairs text-xs text-slate-500"></i>
+                    </div>
+                    <div class="text-[11px] font-mono text-cyan-400 mb-1">${part.spec}</div>
+                    <p class="text-xs text-slate-400 leading-relaxed">${part.role}</p>
+                </div>
+            `).join('');
+        }
+
+        function focusComponent3D(partId) {
+            simState.selectedPart = partId;
+            // Highlight card in UI
+            COMPONENTS_DATA.forEach(p => {
+                const el = document.getElementById(`card-part-${p.id}`);
+                if (el) {
+                    if (p.id === partId) {
+                        el.className = 'cursor-pointer p-3 rounded-xl bg-cyan-950/40 border border-cyan-400 transition shadow-lg';
+                    } else {
+                        el.className = 'cursor-pointer p-3 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/50 transition';
+                    }
+                }
+            });
+
+            // Automatically set a helpful Exploded View level so the selected internal layer is clearly visible
+            if (partId === 'piezo' || partId === 'plungers' || partId === 'springs') {
+                document.getElementById('slider-explode').value = 55;
+                updateExplode(55);
+            } else if (partId === 'circuit') {
+                setCameraPreset('isometric');
+            }
+        }
+
+        // ==========================================
+        // 9. PROJECT ENERGY CALCULATOR
+        // ==========================================
+        function runProjectCalculator() {
+            const tiles = parseInt(document.getElementById('calc-tiles').value, 10);
+            const peoplePerHour = parseInt(document.getElementById('calc-people').value, 10);
+            const hours = parseInt(document.getElementById('calc-hours').value, 10);
+
+            document.getElementById('calc-tiles-val').textContent = `${tiles} Ubin`;
+            document.getElementById('calc-people-val').textContent = `${peoplePerHour.toLocaleString('id-ID')} Orang/jam`;
+            document.getElementById('calc-hours-val').textContent = `${hours} Jam/hari`;
+
+            // Assume each person steps on ~40% of the installed tiles in a corridor pass
+            const effectiveHitsPerPerson = Math.max(1, Math.ceil(tiles * 0.2));
+            const totalSteps = peoplePerHour * hours * effectiveHitsPerPerson;
+
+            // 1.2 Joules per step
+            const totalJoules = totalSteps * 1.2;
+            const totalKJ = totalJoules / 1000;
+            const totalWh = totalJoules / 3600;
+            const led3W_Hours = totalWh / 3.0;
+
+            document.getElementById('res-steps').textContent = totalSteps.toLocaleString('id-ID');
+            document.getElementById('res-joules').textContent = `${totalKJ.toFixed(1)} kJ`;
+            document.getElementById('res-wh').textContent = `~${totalWh.toFixed(1)} Wh / hari`;
+            document.getElementById('res-ledHours').textContent = `${led3W_Hours.toFixed(1)} Jam`;
+        }
+
+        // ==========================================
+        // 10. MAIN ANIMATION LOOP
+        // ==========================================
+        function update3DLabels() {
+            if (!simState.showLabels) return;
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Update dynamic anchor positions based on explode factor
+            const exp = simState.explodeFactor;
+            const comp = simState.compression;
+
+            labelAnchors.topPlate.set(-0.6, 1.0 + exp * 2.1 - comp * 0.25, 0);
+            labelAnchors.springs.set(-2.45, 0.1 + exp * 0.5, 1.85);
+            labelAnchors.plungers.set(-0.6, 0.25 + exp * 1.3 - comp * 0.25, 1.25);
+            labelAnchors.piezo.set(-0.6, -0.55 + exp * 0.35, 1.25);
+            labelAnchors.base.set(-2.7, -0.9 - exp * 0.4, 2.2);
+            labelAnchors.circuit.set(3.5, -0.3, 0);
+
+            Object.keys(labelAnchors).forEach(key => {
+                const el = document.getElementById(`label-${key}`);
+                if (!el) return;
+
+                const pos = labelAnchors[key].clone();
+                pos.project(camera);
+
+                if (pos.z > 1) {
+                    el.style.display = 'none';
+                    return;
+                }
+
+                const x = (pos.x * 0.5 + 0.5) * width;
+                const y = (-(pos.y * 0.5) + 0.5) * height;
+
+                el.style.display = 'block';
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth interpolation for compression and explode slider
+            simState.compression += (simState.targetCompression - simState.compression) * 0.22;
+            simState.explodeFactor += (simState.targetExplode - simState.explodeFactor) * 0.12;
+
+            const comp = simState.compression;
+            const exp = simState.explodeFactor;
+
+            // 1. Move Top Plate & Plungers with compression and explode
+            const plateOffsetY = (exp * 2.1) - (comp * 0.32);
+            topPlateGroup.position.y = plateOffsetY;
+            plungersGroup.position.y = (exp * 1.35) - (comp * 0.32);
+
+            // 2. Move Piezo board & Base frame during Exploded View
+            piezoGroup.position.y = exp * 0.35;
+            baseGroup.position.y = -exp * 0.45;
+
+            // 3. Compress/Stretch the 4 Return Springs dynamically
+            const springScaleY = Math.max(0.4, 1.0 - (comp * 0.24) + (exp * 0.35));
+            springMeshes.forEach(s => {
+                s.scale.y = springScaleY;
+                s.position.y = -0.65 - (exp * 0.2);
+            });
+
+            // 4. Animate Force Arrows above the Top Plate
+            const time = performance.now() * 0.004;
+            forceArrowsGroup.position.y = plateOffsetY + (Math.sin(time * 2) * 0.08) - (comp * 0.18);
+
+            // 5. Animate Piezo Glow Rings & 3D LED & SVG Schematic Glow
+            if (simState.ledGlowIntensity > 0.01) {
+                simState.ledGlowIntensity *= 0.92;
+            } else {
+                simState.ledGlowIntensity = 0;
+            }
+
+            const glow = simState.ledGlowIntensity;
+            piezoGlowRings.forEach(mat => {
+                mat.opacity = glow * 0.95;
+            });
+
+            if (ledBulbMesh && ledPointLight) {
+                ledBulbMesh.material.emissiveIntensity = 0.2 + glow * 2.5;
+                ledPointLight.intensity = glow * 2.2;
+            }
+
+            // Update SVG Schematic live wires
+            const wireAc = document.getElementById('svg-wire-ac');
+            const wireDc1 = document.getElementById('svg-wire-dc1');
+            const wireDc2 = document.getElementById('svg-wire-dc2');
+            const svgLedGlow = document.getElementById('svg-led-glow');
+            const statusBadge = document.getElementById('circuit-status-badge');
+
+            if (glow > 0.15) {
+                wireAc.setAttribute('stroke', '#00d2ff');
+                wireDc1.setAttribute('stroke', '#fbbf24');
+                wireDc2.setAttribute('stroke', '#10b981');
+                svgLedGlow.setAttribute('opacity', Math.min(0.85, glow));
+                statusBadge.textContent = 'GENERATING POWER ⚡';
+                statusBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold';
+            } else {
+                wireAc.setAttribute('stroke', '#1e3a5f');
+                wireDc1.setAttribute('stroke', '#1e3a5f');
+                wireDc2.setAttribute('stroke', '#1e3a5f');
+                svgLedGlow.setAttribute('opacity', '0');
+                statusBadge.textContent = 'STANDBY';
+                statusBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+            }
+
+            // 6. Smooth Camera Orbit Interpolation
+            camControl.theta += (camControl.targetTheta - camControl.theta) * 0.1;
+            camControl.phi += (camControl.targetPhi - camControl.phi) * 0.1;
+            camControl.radius += (camControl.targetRadius - camControl.radius) * 0.1;
+
+            camera.position.x = camControl.radius * Math.sin(camControl.phi) * Math.sin(camControl.theta);
+            camera.position.y = camControl.radius * Math.cos(camControl.phi);
+            camera.position.z = camControl.radius * Math.sin(camControl.phi) * Math.cos(camControl.theta);
+            camera.lookAt(0, camControl.lookAtY, 0);
+
+            updateOscilloscope();
+            update3DLabels();
+
+            renderer.render(scene, camera);
+        }
+
+        // Start everything on window load
+        window.onload = function () {
+            initThreeJS();
+            renderPartsInspector();
+            runProjectCalculator();
+            animate();
+        };
+    </script>
+</body>
+  </html>
